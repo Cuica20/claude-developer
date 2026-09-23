@@ -73,6 +73,24 @@ alumnos resolverán módulo a módulo con Claude Code.
 | wiremock             | Mocking de APIs externas en tests de integración             |
 | cc-hooks-mcps        | Claude Code hooks pre/post, MCPs, modo agente paralelo       |
 
+## Utilitarios para ahorrar tokens (tools/)
+Antes de explorar o leer archivos Java/TypeScript completos, usa estos scripts
+(sin dependencias, solo lectura) en vez de Glob+Read archivo por archivo:
+
+- **Explorar el repo / ubicar dónde está algo:**
+  `python tools/project_map.py` (o `--grep <texto>`, `--mode controller`, `--backend-only`)
+  en vez de recorrer `backend/src` o `frontend/src/app` con Glob.
+- **Revisar un archivo Java o TypeScript sin leerlo completo:**
+  `python tools/skeletonizer.py <archivo> --summary-only` primero; solo usa
+  `Read` sobre el archivo completo si el resumen no basta (p. ej. vas a editar
+  el cuerpo de un método).
+- **Revisar migraciones Flyway (`V*__*.sql`):**
+  `python tools/sql_skeletonizer.py <archivo>` para ver tablas/columnas/índices
+  sin el SQL crudo, y `--check` para detectar tipos imprecisos, FKs sin índice
+  o tablas sin PK (relevante para M9).
+
+Detalle y ejemplos en `tools/README.md`. Estos scripts nunca modifican archivos.
+
 ## Lo que NO debe modificar Claude Code
 - Archivos en `legacy/` → solo lectura
 - `pom.xml` raíz → no agregar dependencias sin instrucción explícita
