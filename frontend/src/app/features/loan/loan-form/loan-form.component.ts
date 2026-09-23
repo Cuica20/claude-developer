@@ -6,12 +6,8 @@ import { LoanService } from '../../../shared/services/loan.service';
 import { Loan } from '../../../shared/models/loan.model';
 
 /**
- * TODO (M2 - Reglas de Negocio): Este formulario tiene validaciones
- * solo técnicas (required, min), pero le faltan las validaciones de negocio:
- * - RN-001: validar edad mínima de 18 años (no solo "campo requerido")
- * - RN-002: validar ratio ingreso/cuota >= 3 (validador de grupo)
- * - RN-003: validar score según monto (validador cruzado)
- * - RN-004: validar deuda vigente (validador asíncrono)
+ * Las reglas de negocio (RN-001 a RN-004) se validan en el backend
+ * (LoanEligibilityValidator) y llegan aquí como `fieldErrors` en la respuesta 400.
  *
  * TODO (M4): Sin guard → cualquier usuario puede acceder a esta ruta.
  */
@@ -81,6 +77,9 @@ import { Loan } from '../../../shared/models/loan.model';
               <span class="field-error" *ngIf="f['applicantEmail'].hasError('email') && f['applicantEmail'].touched">
                 Email inválido
               </span>
+              <span class="field-error" *ngIf="f['applicantEmail'].hasError('server')">
+                {{ f['applicantEmail'].getError('server') }}
+              </span>
             </div>
           </div>
 
@@ -88,16 +87,20 @@ import { Loan } from '../../../shared/models/loan.model';
             <div class="form-field">
               <label for="birthDate">Fecha de nacimiento</label>
               <input id="birthDate" type="date" formControlName="birthDate">
-              <!-- TODO (M2): validar RN-001 edad mínima 18 años -->
-              <span class="field-error" *ngIf="f['birthDate'].invalid && f['birthDate'].touched">
+              <span class="field-error" *ngIf="f['birthDate'].hasError('required') && f['birthDate'].touched">
                 Campo requerido
+              </span>
+              <span class="field-error" *ngIf="f['birthDate'].hasError('server')">
+                {{ f['birthDate'].getError('server') }}
               </span>
             </div>
             <div class="form-field">
               <label for="monthlyIncome">Ingreso mensual (USD)</label>
               <input id="monthlyIncome" type="number" formControlName="monthlyIncome"
                      placeholder="Ej: 3000" min="0" step="100">
-              <!-- TODO (M2): validar RN-002 ratio ingreso/cuota >= 3 -->
+              <span class="field-error" *ngIf="f['monthlyIncome'].hasError('server')">
+                {{ f['monthlyIncome'].getError('server') }}
+              </span>
             </div>
           </div>
 
@@ -118,7 +121,9 @@ import { Loan } from '../../../shared/models/loan.model';
             <label for="creditScore">Score crediticio (300–850)</label>
             <input id="creditScore" type="number" formControlName="creditScore"
                    placeholder="Ej: 680" min="300" max="850">
-            <!-- TODO (M2): validar RN-003 score mínimo según monto -->
+            <span class="field-error" *ngIf="f['creditScore'].hasError('server')">
+              {{ f['creditScore'].getError('server') }}
+            </span>
           </div>
 
           <div *ngIf="errorMessage" class="alert alert--error">{{ errorMessage }}</div>
@@ -174,8 +179,6 @@ export class LoanFormComponent {
   errorMessage: string | null = null;
   savedLoan: Loan | null = null;
 
-  // TODO (M2): agregar validadores de negocio: minAgeValidator, incomeRatioValidator,
-  // creditScoreValidator, y el validador asíncrono CreditBureauValidator
   form = this.fb.group({
     applicantName:  ['', Validators.required],
     applicantEmail: ['', [Validators.required, Validators.email]],
@@ -192,6 +195,7 @@ export class LoanFormComponent {
     if (this.form.invalid) return;
     this.loading = true;
     this.errorMessage = null;
+    this.clearServerErrors();
 
     this.loanService.create(this.form.value as any).subscribe({
       next: (loan) => {
@@ -200,9 +204,25 @@ export class LoanFormComponent {
         this.form.reset();
       },
       error: (err) => {
-        this.errorMessage = err.error?.message ?? err.error?.error ?? 'Error al enviar la solicitud';
+        const fieldErrors: Record<string, string> | undefined = err.error?.fieldErrors;
+        if (fieldErrors) {
+          Object.entries(fieldErrors).forEach(([field, message]) => {
+            this.form.get(field)?.setErrors({ server: message });
+          });
+        } else {
+          this.errorMessage = err.error?.message ?? err.error?.error ?? 'Error al enviar la solicitud';
+        }
         this.loading = false;
       },
+    });
+  }
+
+  private clearServerErrors(): void {
+    Object.values(this.form.controls).forEach(control => {
+      if (control.hasError('server')) {
+        const { server, ...rest } = control.errors ?? {};
+        control.setErrors(Object.keys(rest).length ? rest : null);
+      }
     });
   }
 
