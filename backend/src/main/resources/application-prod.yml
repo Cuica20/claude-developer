@@ -1,0 +1,63 @@
+# ── Perfil de producción: Supabase PostgreSQL ──────────────────────
+# Activar con: SPRING_PROFILES_ACTIVE=prod
+#
+# Variables de entorno requeridas en Railway / Render / Fly.io:
+#   SUPABASE_DB_URL      → jdbc:postgresql://db.[ref].supabase.co:5432/postgres
+#   SUPABASE_DB_USERNAME → postgres
+#   SUPABASE_DB_PASSWORD → tu-password-de-supabase
+#   FRONTEND_URL         → https://tu-app.vercel.app
+#   SPRING_PROFILES_ACTIVE → prod
+
+spring:
+  datasource:
+    url: ${SUPABASE_DB_URL}
+    driver-class-name: org.postgresql.Driver
+    username: ${SUPABASE_DB_USERNAME}
+    password: ${SUPABASE_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 5          # Supabase free tier: máx 60 conexiones
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          lob:
+            non_contextual_creation: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  h2:
+    console:
+      enabled: false    # Nunca exponer H2 en producción
+
+# ── CORS: solo el frontend de Vercel ──
+app:
+  cors:
+    allowed-origins: "${FRONTEND_URL:https://loanapp.vercel.app}"
+
+# ── Actuator: health check visible, detalles ocultos ──
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    com.capacitacion: INFO
+    org.springframework.security: WARN
+    org.flywaydb: INFO
+    org.hibernate.SQL: OFF

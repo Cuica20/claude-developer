@@ -1,0 +1,58 @@
+#!/bin/sh
+# Maven Wrapper Script - Apache Maven 3.9.6
+set -e
+
+# Resolve script location
+THIS_DIR=$(dirname "$0")
+THIS_DIR=$(cd "$THIS_DIR" && pwd)
+
+MAVEN_WRAPPER_PROPERTIES="$THIS_DIR/.mvn/wrapper/maven-wrapper.properties"
+DISTRIBUTION_URL=$(grep "distributionUrl" "$MAVEN_WRAPPER_PROPERTIES" | cut -d= -f2-)
+
+# Check for JAVA_HOME or java on PATH
+if [ -n "$JAVA_HOME" ]; then
+  JAVA_CMD="$JAVA_HOME/bin/java"
+elif command -v java >/dev/null 2>&1; then
+  JAVA_CMD="java"
+else
+  echo ""
+  echo "  ERROR: Java no encontrado."
+  echo "  Instala Java 21 desde https://adoptium.net/"
+  echo ""
+  exit 1
+fi
+
+# Verify Java 17+ (Spring Boot 3.2 minimum)
+JAVA_VER=$("$JAVA_CMD" -version 2>&1 | head -1 | sed 's/.*version "\([0-9]*\).*/\1/')
+if [ "$JAVA_VER" -lt 17 ] 2>/dev/null; then
+  echo ""
+  echo "  ERROR: Se requiere Java 17+, se encontró Java $JAVA_VER."
+  echo "  Este proyecto usa Spring Boot 3.2 compilado con Java 21."
+  echo "  Instala Java 21 desde https://adoptium.net/"
+  echo ""
+  exit 1
+fi
+
+# Locate Maven — use local .mvn cache or system mvn
+MAVEN_HOME="$THIS_DIR/.mvn/wrapper/apache-maven"
+MVN_CMD="$MAVEN_HOME/bin/mvn"
+
+if [ ! -f "$MVN_CMD" ]; then
+  MAVEN_ZIP="$THIS_DIR/.mvn/wrapper/maven.zip"
+  echo "Descargando Apache Maven 3.9.6..."
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$DISTRIBUTION_URL" -o "$MAVEN_ZIP"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q "$DISTRIBUTION_URL" -O "$MAVEN_ZIP"
+  else
+    echo "ERROR: curl o wget necesarios para descargar Maven."
+    echo "Instala Maven manualmente: https://maven.apache.org/download.cgi"
+    exit 1
+  fi
+  unzip -q "$MAVEN_ZIP" -d "$THIS_DIR/.mvn/wrapper/"
+  mv "$THIS_DIR/.mvn/wrapper/apache-maven-3.9.6" "$MAVEN_HOME"
+  rm "$MAVEN_ZIP"
+  echo "Maven descargado en .mvn/wrapper/apache-maven"
+fi
+
+exec "$MVN_CMD" "$@"

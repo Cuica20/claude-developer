@@ -1,0 +1,59 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: loanapp
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # ── Dev: H2 en modo PostgreSQL (mismas migraciones Flyway sirven en ambos) ──
+  datasource:
+    url: jdbc:h2:mem:loandb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=true
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      # "none" → Flyway gestiona el esquema; Hibernate no valida ni altera tablas.
+      # No usar "validate": V1 tiene bugs intencionales de tipos (VARCHAR vs NUMERIC)
+      # que los alumnos corregirán en M9 generando V2 con Claude Code.
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# ── CORS: permite el frontend local (prod sobreescribe en application-prod.yml) ──
+app:
+  cors:
+    allowed-origins: "http://localhost:4200"
+
+# ── Actuator: health check para plataformas de despliegue ──
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    com.capacitacion: INFO
+    org.springframework.security: WARN
+    org.flywaydb: INFO

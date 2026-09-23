@@ -1,0 +1,18 @@
+# Dependencias
+node_modules/
+.npm
+
+# Build
+dist/
+.angular/
+
+# Cobertura
+coverage/
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,157 @@
+# ── Deploy Pipeline: Test → Build → Deploy ───────────────────────
+# Se ejecuta en cada push a main.
+#
+# Secrets necesarios en GitHub → Settings → Secrets and variables → Actions:
+#   VERCEL_TOKEN          → Vercel Dashboard → Account Settings → Tokens
+#   VERCEL_ORG_ID         → vercel link (en la carpeta frontend)
+#   VERCEL_PROJECT_ID     → vercel link (en la carpeta frontend)
+#   RAILWAY_TOKEN         → Railway Dashboard → Account Settings → Tokens
+#   RAILWAY_SERVICE_ID    → Railway → tu proyecto → tu servicio → Settings
+#   NG_APP_API_URL        → https://tu-backend.railway.app/api
+
+name: Deploy to Vercel + Railway
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:    # permite disparar manualmente desde GitHub UI
+
+env:
+  JAVA_VERSION: '21'
+  NODE_VERSION: '20'
+
+jobs:
+  # ── Job 1: Tests del backend ─────────────────────────────────────
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Run tests
+        run: ./mvnw test -B
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: backend/target/surefire-reports/
+
+  # ── Job 2: Tests del frontend ────────────────────────────────────
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests (headless)
+        run: npm test -- --watch=false --browsers=ChromeHeadless
+
+  # ── Job 3: Deploy frontend a Vercel ──────────────────────────────
+  deploy-frontend:
+    name: Deploy Frontend → Vercel
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]   # solo si ambos tests pasan
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Angular (production)
+        run: npm run build -- --configuration production
+        env:
+          NG_APP_API_URL: ${{ secrets.NG_APP_API_URL }}
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Deploy to Vercel
+        run: |
+          vercel pull --yes --environment=production \
+            --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --prod \
+            --token=${{ secrets.VERCEL_TOKEN }}
+          vercel deploy --prebuilt --prod \
+            --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # ── Job 4: Deploy backend a Railway ──────────────────────────────
+  deploy-backend:
+    name: Deploy Backend → Railway
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: railway up --service=${{ secrets.RAILWAY_SERVICE_ID }} --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+  # ── Job 5: Notificación de resultado ─────────────────────────────
+  notify:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [deploy-frontend, deploy-backend]
+    if: always()
+
+    steps:
+      - name: Report status
+        run: |
+          FRONTEND="${{ needs.deploy-frontend.result }}"
+          BACKEND="${{ needs.deploy-backend.result }}"
+          echo "Frontend deploy: $FRONTEND"
+          echo "Backend deploy:  $BACKEND"
+          if [[ "$FRONTEND" == "success" && "$BACKEND" == "success" ]]; then
+            echo "✅ Full deployment successful"
+          else
+            echo "❌ Deployment failed — check logs above"
+            exit 1
+          fi

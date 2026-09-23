@@ -1,0 +1,72 @@
+# docker-compose.yml — Stack local para LoanApp
+# Uso: docker-compose up --build
+# Requisito: crear .env con las variables de abajo
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: loanapp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: loandb
+      POSTGRES_USER: ${DB_USER:-loanapp}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-loanapp_dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-loanapp} -d loandb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    ports:
+      - "5432:5432"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: loanapp-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/loandb
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-loanapp}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-loanapp_dev}
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_production}
+      FRONTEND_URL: http://localhost:4200
+      SPRING_FLYWAY_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: loanapp-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@loanapp.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+
+# --------------------------------------------------------------------------
+# Copia este bloque como .env en la raíz del proyecto (NO subir a Git):
+#
+# DB_USER=loanapp
+# DB_PASSWORD=loanapp_dev_secret
+# JWT_SECRET=cambia_esto_por_un_secreto_real_de_256_bits
+# PGADMIN_EMAIL=dev@loanapp.local
+# PGADMIN_PASSWORD=devpassword
+# --------------------------------------------------------------------------

@@ -1,0 +1,20 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IDE
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# Logs
+*.log
+spring.log
+
+# Maven local download cache (no subir al repo)
+.mvn/wrapper/apache-maven/
+.mvn/wrapper/maven.zip

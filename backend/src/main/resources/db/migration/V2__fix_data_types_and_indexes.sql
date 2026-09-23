@@ -1,0 +1,24 @@
+-- Flyway V2: Corrección de tipos de datos e índices
+-- Generado con Claude Code desde V1 + SPEC_migrations.md
+-- TODO (M9): El alumno debe generar este archivo con Claude Code
+
+-- Este archivo está intencionalmente vacío.
+-- El alumno usará Claude Code para:
+--   1. Analizar V1 y detectar los problemas
+--   2. Generar este V2 con los fixes correctos
+--   3. Incluir estrategia de rollback en comentarios
+--
+-- Resultado esperado del alumno:
+-- ALTER TABLE loans
+--   MODIFY COLUMN monthly_income   NUMERIC(15,2) NOT NULL,
+--   MODIFY COLUMN amount           NUMERIC(15,2) NOT NULL,
+--   MODIFY COLUMN monthly_installment NUMERIC(15,2),
+--   MODIFY COLUMN applicant_email  VARCHAR(255) NOT NULL,
+--   MODIFY COLUMN created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+--
+-- ALTER TABLE loans
+--   ADD CONSTRAINT chk_status CHECK (status IN ('PENDING','APPROVED','REJECTED','DISBURSED'));
+--
+-- CREATE INDEX idx_loans_email  ON loans(applicant_email);
+-- CREATE INDEX idx_loans_status ON loans(status);
+-- CREATE INDEX idx_loans_created_at ON loans(created_at DESC);

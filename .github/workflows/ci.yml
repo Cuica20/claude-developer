@@ -1,0 +1,48 @@
+name: CI — LoanApp
+
+# TODO (M5 - GitHub Actions): Este pipeline es incompleto:
+# - Sin caché de Maven ni npm (builds lentos)
+# - Sin reporte de cobertura
+# - Sin análisis estático
+# - Sin build de imagen Docker
+# - Sin deploy condicional a main
+# Objetivo: generar el pipeline completo con Claude Code desde PIPELINE_SPEC.md
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          # TODO: agregar cache: maven
+      - name: Run tests
+        run: cd backend && mvn test
+        # TODO: agregar --no-transfer-progress y reporte de cobertura
+
+  frontend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # TODO: agregar cache: 'npm'
+      - run: cd frontend && npm install
+        # TODO: cambiar a npm ci (reproducible)
+      - run: cd frontend && npm test -- --watch=false
+        # TODO: agregar --code-coverage y publicar artefacto
+
+  # TODO (M5): agregar job 'deploy' que:
+  # - dependa de backend-test y frontend-test (needs: [...])
+  # - solo corra en main (if: github.ref == 'refs/heads/main')
+  # - construya imagen Docker multi-stage
+  # - publique en Docker Hub usando secrets.DOCKER_USERNAME / secrets.DOCKER_TOKEN
